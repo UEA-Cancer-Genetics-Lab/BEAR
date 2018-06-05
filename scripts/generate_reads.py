@@ -2,8 +2,10 @@
 
 
 from Bio import SeqIO
+from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-import sys, csv, StringIO, random, decimal, argparse
+from Bio.Alphabet import generic_dna
+import re, sys, csv, StringIO, random, decimal, argparse
 
 
 
@@ -39,20 +41,21 @@ else:
 	f4 = open(args.output, 'w')
 
 frags=[]
-
-div_file = csv.reader(f2, delimiter='\t')
 species=[]
 diversity=[]
-
 lengths=[]
 freqs=[]
-comp = {'A':'T', 'T':'A', 'G':'C', 'C':'G'}
+comp = {'A':'T', 'T':'A', 'G':'C', 'C':'G', 'N':'N'}
+
+div_file = csv.reader(f2, delimiter='\t')
 for row in div_file:
 	species.append(row[0][1:])
 	diversity.append(decimal.Decimal(row[1]))
 
 
 for i in SeqIO.parse(f1, 'fasta') :
+	i = i.upper()
+	i.seq= Seq(re.sub('[YRWSKMDVHBX]', 'N', str(i.seq)), generic_dna)
 	genome_num=0
 	while(not(species[genome_num] in i.description)) :
 		genome_num+=1
