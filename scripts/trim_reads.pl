@@ -172,46 +172,26 @@ my $length = max(@lengths);
 for (my $pos = 0; $pos <= $length; $pos++){
 	for (my $row = $min_q; $row <= $max_q; $row++){
 		$rowsum{$pos}{$row} = 0;
-	}
-
-}
-
-for (my $pos = 0; $pos <= $length; $pos++){ 
-	for (my $row = $min_q; $row <= $max_q; $row++){
 		for ( my $col = $min_q; $col <= $max_q; $col++){
 			$rowsum{$pos}{$row} += $hash{$pos}{$row}{$col};
 		}
-	}
-}
-
-#correct for divide by zero error
-for (my $pos = 0; $pos <= $length; $pos++){
-	for (my $row = $min_q; $row <= $max_q; $row++){
 		if ($rowsum{$pos}{$row} == 0){
 			$rowsum{$pos}{$row} = 1;
 		}
 	}
 }
 
-#convert counts to probabilities
-for (my $pos = 0; $pos <= $length; $pos++){
-	for(my $row = $min_q; $row <= $max_q; $row++){
-		for (my $col = $min_q; $col <= $max_q; $col++){
-
-			$hash{$pos}{$row}{$col} = $hash{$pos}{$row}{$col} / $rowsum{$pos}{$row};
-		}
-	}
-}
 
 #convert counts to cumulative probabilities
 for (my $pos = 0; $pos <= $length; $pos++){
 	for (my $row = $min_q; $row <= $max_q; $row++){
-		for (my $col = $min_q+1; $col <= $max_q; $col++){
-			$hash{$pos}{$row}{$col} += $hash{$pos}{$row}{$col-1};
+		my $cumulateProb = 0
+		for (my $col = $min_q; $col <= $max_q; $col++){
+			$cumulateProb += $hash{$pos}{$row}{$col}/$rowsum{$pos}{$row}
+			$hash{$pos}{$row}{$col} = $cumulateProb;
 		}
 	}
 }
-
 
 my $seqs = 0;
 $counter=0;
