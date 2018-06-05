@@ -16,6 +16,7 @@ my $h_del=0;
 
 my @lengths;
 my @freq;
+my @nucleotides = ('A', 'T', 'G', 'C');
 
 my @seeds; #first quality value of each sequence
 
@@ -27,15 +28,11 @@ GetOptions ("i=s" => \$input,
 	    "m=s" => \$matrix_file,
 	    "hi=f" => \$h_ins,
 	    "hd=f" => \$h_del);
-open(DRISEE_ERR_FILE, $err_rate) unless ($err_rate eq "0");
-open(DRISEE_QUAL_FILE, $err_qual) unless ($err_qual eq "0");
 
 my %rates;
 my %quals;
 if($err_rate ne "0"){
-	open(DRISEE_ERR_FILE, $err_rate);
 	system("error_models.py $err_rate > $err_rate.r.out");
-	close(DRISEE_ERR_FILE);
 	open(ERR_RATE_FILE, "$err_rate.r.out"); 
 	while(<ERR_RATE_FILE>){
 		my ($m, $b);
@@ -49,8 +46,7 @@ if($err_rate ne "0"){
 				($b, $m) = ($2, $4);
 				$rates{$base}{'slope'} = $m;
 				$rates{$base}{'intercept'} = $b;
-				print $rates{$base}{'slope'};
-				print $rates{$base}{'intercept'};
+				print $base."\t".$m."\t".$b."\n";
 			}
 		}
 	}
@@ -63,6 +59,7 @@ for my $init (0..1200){
 	$indel_rates{'D'}{$init} = 0.5;
 	$indel_rates{'I'}{$init} = 1.0;
 }
+
 if($err_qual ne "0"){
 	open(DRISEE_QUAL_FILE, $err_qual);
 	my $i = 0;
@@ -71,8 +68,9 @@ if($err_qual ne "0"){
 		$indel_rates{'I'}{$i} = $indel_rates{'D'}{$i} + $indel_rates{'I'}{$i}; #cumulative probability
 		$i++;
 	}
-	system("error_quality.py $err_qual > $err_qual.r.out");
 	close(DRISEE_QUAL_FILE);
+
+	system("error_quality.py $err_qual > $err_qual.r.out");
 	open(ERR_QUAL_FILE, "$err_qual.r.out");
 	while(<ERR_QUAL_FILE>){
 	        my ($inter, $coef1, $coef2);
@@ -114,10 +112,9 @@ if($matrix_file ne "0"){
 
 my %ins_matrix;
 my %sub_matrix;
-my @bases=('A', 'T', 'G', 'C');
 if($matrix_file ne "0"){
-	foreach my $base1 (@bases){
-		foreach my $base2(@bases){
+	foreach my $base1 (@nucleotides){
+		foreach my $base2(@nucleotides){
 			$ins_matrix{$base1}{$base2} = shift @ins_values;
 			$sub_matrix{$base1}{$base2} = shift @sub_values;
 		}
@@ -157,11 +154,8 @@ for( my $pos = 0; $pos <= 1200; $pos++){
 		}
 	}
 }
-open(MYFILE, ">$output");
-my $seq_in= Bio::SeqIO->new(
-                                -format => 'fastq',
-                                -file   => $input,
-                        );
+
+my $seq_in= Bio::SeqIO->new( -format => 'fastq', -file   => $input);
 
 my $prev_q1 = my $prev_q2 = $min_q;
 
@@ -188,7 +182,7 @@ while( my $cur_seq = $seq_in->next_seq() ){
 		$hash{$position}{$prev_q2}{$cur_qual} += 10;
 		$position += 1;
 	}
-}			
+}
 
 my %rowsum;
 my $length = max(@lengths);
@@ -240,19 +234,20 @@ for (my $pos = 0; $pos <= $length; $pos++){
 my $seqs = 0;
 $counter=0;
 
+open(MYFILE, ">$output");
+
 open(MYFILE3, $fasta);
 my $header = ' ';
 my $curseq = ' ';
 #generate sequences
 
-my @nucleotides = ('A', 'T', 'G', 'C');
 while(<MYFILE3>){
 	my $line = $_;
-        chomp($line);
-        if($line =~ s/>/@/){
-                $header = $line;
+	chomp($line);
+	if($line =~ s/>/@/){
+		$header = $line;
 		next;
-        }else{
+	}else{
 		$curseq = $line;
 	}
 	$counter += 1;
@@ -353,10 +348,10 @@ while(<MYFILE3>){
 				if($err_rate ne "0"){
 					my $cur_base = substr($new_seq, $i, 1);
 					if($cur_base eq 'N' || $cur_base eq 'n'){ #
-						$cur_base = $bases[rand @bases];
+						$cur_base = $nucleotides[rand @nucleotides];
 					}
 					my $nuc_prob = rand();
-					for my $base_check (@bases){
+					for my $base_check (@nucleotides){
 						if($nuc_prob < $sub_matrix{$cur_base}{$base_check}){
 							$cur_base = $base_check;
 							last;
@@ -452,7 +447,7 @@ while(<MYFILE3>){
 			if($indel_check < $indel_rate){
 				if($type>$indel_rates{'D'}{$i}){ #insertion
 					my $nuc_prob = rand();
-					for my $base_check (@bases){
+					for my $base_check (@nucleotides){
 						if($nuc_prob < $ins_matrix{$cur_base}{$base_check}){
 							$cur_base = $base_check;
 							last;
