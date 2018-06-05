@@ -19,11 +19,11 @@ log_t = np.log(t[np.flatnonzero(t)])
 log_g = np.log(g[np.flatnonzero(g)])
 log_c = np.log(c[np.flatnonzero(c)])
 log_x = np.log(x[np.flatnonzero(x)])
-a_model = np.linalg.lstsq(A.T, log_a)[0]
-t_model = np.linalg.lstsq(T.T, log_t)[0]
-g_model = np.linalg.lstsq(G.T, log_g)[0]
-c_model = np.linalg.lstsq(C.T, log_c)[0]
-x_model = np.linalg.lstsq(X.T, log_x)[0]
+a_model = np.linalg.lstsq(A.T, log_a, rcond=-1)[0]
+t_model = np.linalg.lstsq(T.T, log_t, rcond=-1)[0]
+g_model = np.linalg.lstsq(G.T, log_g, rcond=-1)[0]
+c_model = np.linalg.lstsq(C.T, log_c, rcond=-1)[0]
+x_model = np.linalg.lstsq(X.T, log_x, rcond=-1)[0]
 
 print "(Intercept)\tA.nonzero" 
 print str(a_model[1]) + "\t" + str(a_model[0])
