@@ -100,9 +100,7 @@ if($matrix_file ne "0"){
 		chomp;
 		if(($_ =~ /(\d).*/) && ($mat_count < 8)){
 			my @line = split("\t", $_);
-			foreach my $val (@line){
-				$mat_count < 4 ? push(@ins_values, $val) : push(@sub_values, $val);
-			}
+			$mat_count < 4 ? push(@ins_values, @line) : push(@sub_values, @line);
 			$mat_count++;	
 		}
 	}
@@ -114,32 +112,16 @@ my %ins_matrix;
 my %sub_matrix;
 if($matrix_file ne "0"){
 	foreach my $base1 (@nucleotides){
+		my $cumProb1 = 0;
+		my $cumProb2 = 0;
 		foreach my $base2(@nucleotides){
-			$ins_matrix{$base1}{$base2} = shift @ins_values;
-			$sub_matrix{$base1}{$base2} = shift @sub_values;
-		}
-	}
-
-	#convert to cumulative probabilities
-	foreach my $base1 (@bases){
-		my $prev_base = ' ';
-		foreach my $base2 (@bases){
-			if($prev_base ne ' '){
-				$ins_matrix{$base1}{$base2} += $ins_matrix{$base1}{$prev_base};
-				$sub_matrix{$base1}{$base2} += $ins_matrix{$base1}{$prev_base};
-			}
-			$prev_base = $base2;
+			$cumProb1 += shift @ins_values;
+			$ins_matrix{$base1}{$base2} = $cumProb1;
+			$cumProb2 += shift @sub_values;
+			$sub_matrix{$base1}{$base2} = $cumProb2;
 		}
 	}
 }
-
-#foreach my $base1(@bases){
-#	foreach my $base2(@bases){
-#		print "$sub_matrix{$base1}{$base2}\t";
-#	}
-#	print "\n";
-#}
-
 
 my %hash;
 
