@@ -64,9 +64,9 @@ for i in SeqIO.parse(f1, 'fasta') :
 
 		limit=len(i.seq)
 		for j in range(0, coverage) :
-                	rand = random.random()
-                	rand_length = 0
-                	numLen = len(lengths)-1
+			rand = random.random()
+			rand_length = 0
+			numLen = len(lengths)-1
 
 			if( (insert_avg != 0) & (insert_stddev != 0)):
 				cur_insert = int(random.gauss(insert_avg, insert_stddev))
@@ -75,11 +75,15 @@ for i in SeqIO.parse(f1, 'fasta') :
 					end1 = start1 + max_read_length
 					start2 = end1 + cur_insert
 					end2 = start2 + max_read_length
-				else:
+				# for contigs upto read length are used and anything smaller are ignored
+				elif(limit >= max_read_length):
 					start1 = 0
-					end1 = limit
-					start2 = 0
+					end1 = max_read_length
+					start2 = limit - max_read_length
 					end2 = limit
+				else:
+					continue
+
 				read1 = i.seq[start1:end1]
 				read2 = ''.join([comp[b] for b in i.seq[end2:start2:-1]])
 				if(args.direction):
@@ -88,7 +92,7 @@ for i in SeqIO.parse(f1, 'fasta') :
 						f4.write(">%s\n" % i.description)
 						f4.write("%s\n" % read1)
 						f5.write(">%s\n" % i.description)
-                                		f5.write("%s\n" % read2)
+						f5.write("%s\n" % read2)
 					else: #reverse orientation
 						f4.write(">%s\n" % i.description)
 						f4.write("%s\n" % read1[::-1])
@@ -96,34 +100,34 @@ for i in SeqIO.parse(f1, 'fasta') :
 						f5.write("%s\n" % read2[::-1])
 				read2 = i.seq[end2:start2:-1]
 				if(args.direction and random.random() < 0.5):
-				        #reverse orientation
+					#reverse orientation
 					f4.write(">%s\n" % i.description)
 					f4.write("%s\n" % read1[::-1])
 					f5.write(">%s\n" % i.description)
 					f5.write("%s\n" % read2[::-1])
 				else:
-                                        #forward orientation
-                                        f4.write(">%s\n" % i.description)
+					#forward orientation
+					f4.write(">%s\n" % i.description)
 					f4.write("%s\n" % read1)
 					f5.write(">%s\n" % i.description)
-                                	f5.write("%s\n" % read2)
+					f5.write("%s\n" % read2)
 
 			else:
-				if(limit > max_read_length) :
+				if(limit >= max_read_length) :
 					start=random.randint(0, limit-max_read_length)
 					end=start+max_read_length
+				# if contig length less than read length ignore
 				else:
-					start=0
-					end=limit
+					continue
 				read = i.seq[start:end]
 				if(args.direction and random.random() < 0.5):
-                                        #reverse orientation
+					#reverse orientation
 					read = ''.join([comp[b] for b in i.seq[end:start:-1]])
 					f4.write(">%s\n" % i.description)
 					f4.write("%s\n" % read)
 					
 				else:
-                                        #forward orientation
+					#forward orientation
 					f4.write(">%s\n" % i.description)
 					f4.write("%s\n" % read)
 
