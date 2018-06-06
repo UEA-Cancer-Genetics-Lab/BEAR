@@ -232,7 +232,7 @@ while(<MYFILE3>){
 		my $avg2 = $avg;
 		$rand_per = rand();
 		my $cur_nuc = substr($new_seq, $i, 1);
-		my $new_base = $cur_nuc
+		my $new_base = $cur_nuc;
 		my $sub_check = rand();
 		my $indel_check = rand();
 		if ($state_num == 0){
@@ -301,8 +301,8 @@ while(<MYFILE3>){
 		my $type=rand();
 		if($sub_check < $sub_rate){
 			# ignore substituting ambiguous nucleotides
-			if $cur_nuc eq 'N' {
-				my $sub_qual = $qual_string[$#qual_string];
+			if ($cur_nuc eq 'N'){
+				my $sub_qual = $qual_string[rand @qual_string];
 				push(@qual_string, $sub_qual);
 				$markov_qual = ord($sub_qual)-33;
 			}
@@ -402,8 +402,8 @@ while(<MYFILE3>){
 
 			if($indel_check < $indel_rate){
 				# ignore substituting ambiguous nucleotides
-				if $cur_nuc eq 'N' {
-					my $new_qual = $qual_string[$#qual_string];
+				if ($cur_nuc eq 'N'){
+					my $new_qual = $qual_string[rand @qual_string];
 					push(@qual_string, $new_qual);
 					$markov_qual = ord($new_qual)-33;
 				}elsif($type>$indel_rates{'D'}{$i}){ #insertion
