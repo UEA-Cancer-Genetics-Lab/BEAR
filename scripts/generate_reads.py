@@ -52,6 +52,7 @@ for row in div_file:
 	species.append(row[0][1:])
 	diversity.append(decimal.Decimal(row[1]))
 
+uniqueReadCounter = 0
 
 for i in SeqIO.parse(f1, 'fasta') :
 	i = i.upper()
@@ -67,6 +68,8 @@ for i in SeqIO.parse(f1, 'fasta') :
 			rand = random.random()
 			rand_length = 0
 			numLen = len(lengths)-1
+			# making read headers unique
+			i.description = i.id + "_read_" + str(uniqueReadCounter)
 
 			if( (insert_avg != 0) & (insert_stddev != 0)):
 				cur_insert = int(random.gauss(insert_avg, insert_stddev))
@@ -130,6 +133,8 @@ for i in SeqIO.parse(f1, 'fasta') :
 					#forward orientation
 					f4.write(">%s\n" % i.description)
 					f4.write("%s\n" % read)
+
+			uniqueReadCounter += 1
 
 	if (genome_num >= len(species) ) :
 		break;
