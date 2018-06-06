@@ -43,15 +43,25 @@ if(insert_avg):
 else:
 	f4 = open(args.output, 'w')
 
-species=[]
-diversity=[]
-lengths=[]
-freqs=[]
-
+speciesAbund = {}
 div_file = csv.reader(f2, delimiter='\t')
 for row in div_file:
-	species.append(row[0][1:])
-	diversity.append(decimal.Decimal(row[1]))
+	abundance = decimal.Decimal(row[1])
+	# ignore species with zero abundance
+	if abundance == 0 :
+		continue
+	speciesAbund[row[0][1:]] = int(round(abundance*total_reads))
+
+# adjust simulated excess or defecit
+simulatedSum = sum(speciesAbund.values())
+numDiff = total_reads - simulatedSum
+for x in range(0, abs(numDiff)) :
+	selectedKey = random.choice(speciesAbund.keys())
+	if numDiff < 0 :
+		speciesAbund[selectedKey] -= 1
+	else :
+		speciesAbund[selectedKey] += 1
+
 
 uniqueReadCounter = 0
 
@@ -59,69 +69,66 @@ for i in SeqIO.parse(f1, 'fasta') :
 	i = i.upper()
 	i.seq= Seq(re.sub('[YRWSKMDVHBX]', 'N', str(i.seq)), generic_dna)
 
-	genome_num=0
-	while(not(species[genome_num] in i.description)) :
-		genome_num+=1
-	if(species[genome_num] in i.description) :
-		coverage=max(1, int((decimal.Decimal(diversity[genome_num])*total_reads)))
+	coverage=0
+	for species in speciesAbund :
+		if species in i.description :
+			coverage=speciesAbund[species]
+			# delete key to reduce time for later iterations
+			del speciesAbund[species]
+			break
 
-		limit=len(i.seq)
-		for j in range(0, coverage) :
-			uniqueReadCounter += 1
-			rand = random.random()
-			rand_length = 0
-			numLen = len(lengths)-1
-			# making read headers unique
-			i.description = i.id + "_read_" + str(uniqueReadCounter)
+	limit=len(i.seq)
+	for j in range(0, coverage) :
+		# making read headers unique
+		uniqueReadCounter += 1
+		i.description = i.id + "_read_" + str(uniqueReadCounter)
 
-			if( (insert_avg != 0) & (insert_stddev != 0)):
-				cur_insert = int(random.gauss(insert_avg, insert_stddev))
-				if(limit > (max_read_length * 2 + cur_insert)):
-					start1 = random.randint(0, limit-(2*max_read_length + cur_insert))
-					end1 = start1 + max_read_length
-					start2 = end1 + cur_insert
-					end2 = start2 + max_read_length
-				# for contigs upto read length are used and anything smaller are ignored
-				elif(limit >= max_read_length):
-					start1 = 0
-					end1 = max_read_length
-					start2 = limit - max_read_length
-					end2 = limit
-				else:
-					continue
-
-				read1 = i.seq[start1:end1]
-				read2 = i.seq[end2:start2:-1].reverse_complement()
-				# reads from any orienation then randomly make reads from reverse strand
-				if(args.direction and random.random() > 0.5):
-					read1 = read1.reverse_complement()
-					read2 = read2.reverse_complement()
-				
-				# write reads to files
-				f4.write(">%s\n" % i.description)
-				f4.write("%s\n" % read1)
-				f5.write(">%s\n" % i.description)
-				f5.write("%s\n" % read2)
-
+		if( (insert_avg != 0) & (insert_stddev != 0)):
+			cur_insert = int(random.gauss(insert_avg, insert_stddev))
+			if(limit > (max_read_length * 2 + cur_insert)):
+				start1 = random.randint(0, limit-(2*max_read_length + cur_insert))
+				end1 = start1 + max_read_length
+				start2 = end1 + cur_insert
+				end2 = start2 + max_read_length
+			# for contigs upto read length are used and anything smaller are ignored
+			elif(limit >= max_read_length):
+				start1 = 0
+				end1 = max_read_length
+				start2 = limit - max_read_length
+				end2 = limit
 			else:
-				if(limit >= max_read_length) :
-					start=random.randint(0, limit-max_read_length)
-					end=start+max_read_length
-				# if contig length less than read length ignore
-				else:
-					continue
-				read = i.seq[start:end]
-				#reverse orientation
-				if(args.direction and random.random() > 0.5):
-					read = read.reverse_complement()
+				continue
 
-				# write read to file
-				f4.write(">%s\n" % i.description)
-				f4.write("%s\n" % read)
+			read1 = i.seq[start1:end1]
+			read2 = i.seq[end2:start2:-1].reverse_complement()
+			# reads from any orienation then randomly make reads from reverse strand
+			if(args.direction and random.random() > 0.5):
+				read1 = read1.reverse_complement()
+				read2 = read2.reverse_complement()
+			
+			# write reads to files
+			f4.write(">%s\n" % i.description)
+			f4.write("%s\n" % read1)
+			f5.write(">%s\n" % i.description)
+			f5.write("%s\n" % read2)
+
+		else:
+			if(limit >= max_read_length) :
+				start=random.randint(0, limit-max_read_length)
+				end=start+max_read_length
+			# if contig length less than read length ignore
+			else:
+				continue
+			read = i.seq[start:end]
+			#reverse orientation
+			if(args.direction and random.random() > 0.5):
+				read = read.reverse_complement()
+
+			# write read to file
+			f4.write(">%s\n" % i.description)
+			f4.write("%s\n" % read)
 
 
-	if (genome_num >= len(species) ) :
-		break;
 
 f1.close()
 f2.close()
