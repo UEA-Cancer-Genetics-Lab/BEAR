@@ -183,9 +183,9 @@ for (my $pos = 0; $pos <= $length; $pos++){
 #convert counts to cumulative probabilities
 for (my $pos = 0; $pos <= $length; $pos++){
 	for (my $row = $min_q; $row <= $max_q; $row++){
-		my $cumulateProb = 0
+		my $cumulateProb = 0;
 		for (my $col = $min_q; $col <= $max_q; $col++){
-			$cumulateProb += $hash{$pos}{$row}{$col}/$rowsum{$pos}{$row}
+			$cumulateProb += $hash{$pos}{$row}{$col}/$rowsum{$pos}{$row};
 			$hash{$pos}{$row}{$col} = $cumulateProb;
 		}
 	}
@@ -282,7 +282,7 @@ while(<MYFILE3>){
 		#my $indel_rate = $err_rate ne "0" ? exp( ($rates{'X'}{'slope'} * $i) + $rates{'X'}{'intercept'})/100 : 0;
 		#my $indel_rate_check = $err_rate ne "0" ? $rates{'X'}{'slope'} * exp( exp($rates{'X'}{'intercept'}) * $i) : 0;
 		my $indel_rate_check = $err_rate ne "0" ? exp( ($rates{'X'}{'slope'} * $i) + $rates{'X'}{'intercept'}) : 0;
-		my $indel_rate = $indel_rate_check > 1.0 ? 1.0 ; $indel_rate_check;
+		my $indel_rate = $indel_rate_check > 1.0 ? 1.0 : $indel_rate_check;
 
 		my $found = 0;
 		my $test_col = 0;
