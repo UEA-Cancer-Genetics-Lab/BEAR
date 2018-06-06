@@ -146,7 +146,7 @@ while( my $cur_seq = $seq_in->next_seq() ){
 	my $prev_avg = 0;
 	push( @lengths, length($cur_seq->seq()) ); 
 	$counter += 1;
-	if ($counter % 1000 == 0){
+	if ($counter % 1000000 == 0){
 		print "Training: $counter\n";
 	}
 	my $position = 0;
@@ -209,7 +209,7 @@ while(<MYFILE3>){
 		$curseq = $line;
 	}
 	$counter += 1;
-	if ($counter % 1000 == 0){
+	if ($counter % 1000000 == 0){
 		print "Generating $counter\n";
 	}
 	my $rand_per = rand();
