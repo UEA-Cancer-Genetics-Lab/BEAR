@@ -33,7 +33,7 @@ my %rates;
 my %quals;
 if($err_rate ne "0"){
 	system("error_models.py $err_rate > $err_rate.r.out");
-	open(ERR_RATE_FILE, "$err_rate.r.out"); 
+	open(ERR_RATE_FILE, "$err_rate.r.out") or die "Could not open $err_rate.r.out\n"; 
 	while(<ERR_RATE_FILE>){
 		my ($m, $b);
 		my $next;
@@ -71,7 +71,7 @@ if($err_qual ne "0"){
 	close(DRISEE_QUAL_FILE);
 
 	system("error_quality.py $err_qual > $err_qual.r.out");
-	open(ERR_QUAL_FILE, "$err_qual.r.out");
+	open(ERR_QUAL_FILE, "$err_qual.r.out") or die "Could not open $err_qual.r.out\n";
 	while(<ERR_QUAL_FILE>){
 	        my ($inter, $coef1, $coef2);
 	        my $next;
@@ -232,6 +232,7 @@ while(<MYFILE3>){
 		my $avg2 = $avg;
 		$rand_per = rand();
 		my $cur_nuc = substr($new_seq, $i, 1);
+		my $new_base = $cur_nuc
 		my $sub_check = rand();
 		my $indel_check = rand();
 		if ($state_num == 0){
@@ -267,8 +268,10 @@ while(<MYFILE3>){
 			$prev2 = $prev1;
 			$avg = int( ($prev2*.38) + ($prev3*.29) + ($prev4*.20) + ($prev5*.11) + ($prev6*.02));
 		}
+
+		#handle ambiguous nucleotides, smartmatch requires perl 5.10
 		my $nuc_check;
-		if( $cur_nuc ~~ @nucleotides){ #handle ambiguous nucleotides, smartmatch requires perl 5.10
+		if( $cur_nuc ~~ @nucleotides){
 			$nuc_check = $cur_nuc;
 		}else{
 			$nuc_check = $nucleotides[rand @nucleotides];
@@ -294,22 +297,25 @@ while(<MYFILE3>){
 			print "$new_seq\n",@qual_string,"\n";
 			die;
 		}
-		$avg = $prev1;	
+		$avg = $prev1;
 		my $type=rand();
 		if($sub_check < $sub_rate){
-			if($err_rate ne "0"){
-				my $cur_base = substr($new_seq, $i, 1);
-				if($cur_base eq 'N' || $cur_base eq 'n'){ #
-					$cur_base = $nucleotides[rand @nucleotides];
-				}
+			# ignore substituting ambiguous nucleotides
+			if $cur_nuc eq 'N' {
+				my $sub_qual = $qual_string[$#qual_string];
+				push(@qual_string, $sub_qual);
+				$markov_qual = ord($sub_qual)-33;
+			}
+			elsif($err_rate ne "0"){
 				my $nuc_prob = rand();
 				for my $base_check (@nucleotides){
-					if($nuc_prob < $sub_matrix{$cur_base}{$base_check}){
-						$cur_base = $base_check;
+					if($nuc_prob < $sub_matrix{$cur_nuc}{$base_check}){
+						$new_base = $base_check;
 						last;
 					}
 				}
-				substr($new_seq, $i, 1) = $cur_base;
+				# substitute new base in the sequence
+				substr($new_seq, $i, 1) = $new_base;
 				#my $sub_qual = int( ($quals{$cur_nuc}{'slope'} * $i) + $quals{$cur_nuc}{'intercept'});
 				my $new_sub_qual = int($quals{$cur_nuc}{'intercept'} + ($quals{$cur_nuc}{'coef1'} * $i) + (($quals{$cur_nuc}{'coef2'}) * ($i**2)));
 				my $sub_qual;
@@ -354,12 +360,11 @@ while(<MYFILE3>){
 				}
 			}
 			my $temp_els = scalar(@qual_string);
-			my $cur_base = substr($new_seq, $i, 1);
 			my $prev_base = substr($new_seq, $i-1, 1);
 			my $h_total = $h_ins + $h_del > 0 ? $h_ins + $h_del : 1;
 			my $h_i_per = $h_ins / ($h_total);
 			my $h_d_per = $h_del / ($h_total);
-			#if($cur_base eq $prev_base){
+			#if($cur_nuc eq $prev_base){
 				my $h_check = rand();
 				my $h_max = 12;
 				my $h_cur = 0;
@@ -368,7 +373,7 @@ while(<MYFILE3>){
 					if($h_err_type < $h_i_per){
 					#homopolymer insertion
 						#print "OLD SEQ: $new_seq\n";
-						substr($new_seq, $i+1, 0, $cur_base);
+						substr($new_seq, $i+1, 0, $cur_nuc);
 						#print "NEW SEQ: $new_seq\n";
 						my $new_ins_qual = int($quals{'X'}{'intercept'} + ($quals{'X'}{'coef1'} * $i) + (($quals{'X'}{'coef2'}) * ($i**2)));
 						my $ins_qual;
@@ -396,15 +401,20 @@ while(<MYFILE3>){
 
 
 			if($indel_check < $indel_rate){
-				if($type>$indel_rates{'D'}{$i}){ #insertion
+				# ignore substituting ambiguous nucleotides
+				if $cur_nuc eq 'N' {
+					my $new_qual = $qual_string[$#qual_string];
+					push(@qual_string, $new_qual);
+					$markov_qual = ord($new_qual)-33;
+				}elsif($type>$indel_rates{'D'}{$i}){ #insertion
 					my $nuc_prob = rand();
 					for my $base_check (@nucleotides){
-						if($nuc_prob < $ins_matrix{$cur_base}{$base_check}){
-							$cur_base = $base_check;
+						if($nuc_prob < $ins_matrix{$cur_nuc}{$base_check}){
+							$new_base = $base_check;
 							last;
 						}
 					}
-					substr($new_seq, $i+1, 0, $cur_base);
+					substr($new_seq, $i+1, 0, $new_base);
 					my $new_ins_qual = int($quals{'X'}{'intercept'} + ($quals{'X'}{'coef1'} * $i) + (($quals{'X'}{'coef2'}) * ($i**2)));
 					my $ins_qual;
 					if($new_ins_qual > $max_q){
@@ -425,6 +435,7 @@ while(<MYFILE3>){
 					$rand_length--;
 					$markov_qual = ord(pop(@qual_string))-33;
 				}
+
 			}
 		}
 	}
@@ -436,17 +447,11 @@ while(<MYFILE3>){
 	$avg = 0;
 	$seqs += 1;
 
-	my $fasta_length = length($new_seq);
-	my $qual_length = scalar(@qual_string);
-
-	my $trimseq='';
-	my $trimqual='';
-	my $temp_qual= join "", @qual_string;	
-        
-	$trimseq = $new_seq;
-    	$trimqual = $temp_qual;
+	# my $fasta_length = length($new_seq);
+	# my $qual_length = scalar(@qual_string);
+	my $trimqual = join "", @qual_string;
 	print MYFILE "$header\n";
-	print MYFILE "$trimseq";
+	print MYFILE "$new_seq";
 	print MYFILE  "\n+\n";
 	print MYFILE "$trimqual";
 	print MYFILE "\n";
