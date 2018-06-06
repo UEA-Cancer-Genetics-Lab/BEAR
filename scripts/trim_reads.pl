@@ -137,12 +137,10 @@ for( my $pos = 0; $pos <= 1200; $pos++){
 	}
 }
 
-my $seq_in= Bio::SeqIO->new( -format => 'fastq', -file   => $input);
-
-my $prev_q1 = my $prev_q2 = $min_q;
-
 #populate the markov chain based on previous value + current state
 my $counter=0;
+my $prev_q1 = my $prev_q2 = $min_q;
+my $seq_in= Bio::SeqIO->new( -format => 'fastq', -file => $input);
 while( my $cur_seq = $seq_in->next_seq() ){
 	my $prev_states = 0;
 	my $prev_avg = 0;
@@ -196,13 +194,11 @@ for (my $pos = 0; $pos <= $length; $pos++){
 my $seqs = 0;
 $counter=0;
 
+#generate sequences
 open(MYFILE, ">$output");
-
-open(MYFILE3, $fasta);
 my $header = ' ';
 my $curseq = ' ';
-#generate sequences
-
+open(MYFILE3, $fasta);
 while(<MYFILE3>){
 	my $line = $_;
 	chomp($line);
@@ -222,13 +218,16 @@ while(<MYFILE3>){
 	$markov_qual = $seeds[rand @seeds];
 	my @qual_string=();	
 	push(@qual_string, chr($markov_qual+33));
+
 	my $state_num = 0;
 	my $prev1 = my $prev2 = my $prev3 = my $prev4 = my $prev5 = my $prev6 = my $avg = $min_q;
 
 	#change these next few lines for biased sequences
 	my $rand_length = $lengths[rand @lengths];
 	my $rand2 = rand();
-	my $new_seq = $curseq; $rand_length = length($new_seq);#UNCOMMENT LATER: substr($curseq, 0, $rand_length);
+	my $new_seq = $curseq; 
+	$rand_length = length($new_seq);
+	#UNCOMMENT LATER: substr($curseq, 0, $rand_length);
 	for (my $i = 1; $i < $rand_length; $i++){ #$i=0 is already on the string, remove the -1 after
 		my $avg2 = $avg;
 		$rand_per = rand();
@@ -277,22 +276,14 @@ while(<MYFILE3>){
 		$prev1 = $markov_qual;
 		my $sub_rate_check = $err_rate ne "0" ? exp( ($rates{$nuc_check}{'slope'} * $i) + $rates{$nuc_check}{'intercept'}) : 10**((-$markov_qual)/10);
 		#my $sub_rate_check = $err_rate ne "0" ? $rates{$nuc_check}{'slope'} * exp( exp($rates{$nuc_check}{'intercept'}) * $i) : 10**((-$markov_qual)/10);
-		my $sub_rate=0;
-		if($sub_rate_check > 1.0){
-			$sub_rate = 1.0;
-		}else{
-			$sub_rate = $sub_rate_check;
-		}
+		my $sub_rate = $sub_rate_check > 1.0 ? 1.0 : $sub_rate_check;
+
 		#my $sub_rate = $err_rate ne "0" ? exp( ($rates{$nuc_check}{'slope'} * $i) + $rates{$nuc_check}{'intercept'})/100 : 10**((-$markov_qual)/10);
 		#my $indel_rate = $err_rate ne "0" ? exp( ($rates{'X'}{'slope'} * $i) + $rates{'X'}{'intercept'})/100 : 0;
 		#my $indel_rate_check = $err_rate ne "0" ? $rates{'X'}{'slope'} * exp( exp($rates{'X'}{'intercept'}) * $i) : 0;
 		my $indel_rate_check = $err_rate ne "0" ? exp( ($rates{'X'}{'slope'} * $i) + $rates{'X'}{'intercept'}) : 0;
-		my $indel_rate = 0;
-		if($indel_rate_check > 1.0){
-			$indel_rate = 1.0; 
-		}else{
-			$indel_rate = $indel_rate_check;
-		}
+		my $indel_rate = $indel_rate_check > 1.0 ? 1.0 ; $indel_rate_check;
+
 		my $found = 0;
 		my $test_col = 0;
 		$rand_per = rand();
@@ -305,39 +296,37 @@ while(<MYFILE3>){
 		}
 		$avg = $prev1;	
 		my $type=rand();
-		if( ($sub_check < $sub_rate)){
-			if($sub_check < $sub_rate){
-				if($err_rate ne "0"){
-					my $cur_base = substr($new_seq, $i, 1);
-					if($cur_base eq 'N' || $cur_base eq 'n'){ #
-						$cur_base = $nucleotides[rand @nucleotides];
-					}
-					my $nuc_prob = rand();
-					for my $base_check (@nucleotides){
-						if($nuc_prob < $sub_matrix{$cur_base}{$base_check}){
-							$cur_base = $base_check;
-							last;
-						}
-					}
-					substr($new_seq, $i, 1) = $cur_base;
-					#my $sub_qual = int( ($quals{$cur_nuc}{'slope'} * $i) + $quals{$cur_nuc}{'intercept'});
-					my $new_sub_qual = int($quals{$cur_nuc}{'intercept'} + ($quals{$cur_nuc}{'coef1'} * $i) + (($quals{$cur_nuc}{'coef2'}) * ($i**2)));
-					my $sub_qual;
-					if ($new_sub_qual < $min_q){
-						$sub_qual = $min_q;
-					}elsif($new_sub_qual > $max_q){
-						$sub_qual = $max_q;
-					}else{
-						$sub_qual = $new_sub_qual;
-					}
-					push(@qual_string, chr($sub_qual+33));
-					$markov_qual = $sub_qual;
-				}else{
-					substr($new_seq, $i, 1) = $nucleotides[rand @nucleotides];
-					my $sub_qual = $qual_string[$#qual_string];
-					push(@qual_string, $sub_qual);
-					$markov_qual = ord($sub_qual)-33;
+		if($sub_check < $sub_rate){
+			if($err_rate ne "0"){
+				my $cur_base = substr($new_seq, $i, 1);
+				if($cur_base eq 'N' || $cur_base eq 'n'){ #
+					$cur_base = $nucleotides[rand @nucleotides];
 				}
+				my $nuc_prob = rand();
+				for my $base_check (@nucleotides){
+					if($nuc_prob < $sub_matrix{$cur_base}{$base_check}){
+						$cur_base = $base_check;
+						last;
+					}
+				}
+				substr($new_seq, $i, 1) = $cur_base;
+				#my $sub_qual = int( ($quals{$cur_nuc}{'slope'} * $i) + $quals{$cur_nuc}{'intercept'});
+				my $new_sub_qual = int($quals{$cur_nuc}{'intercept'} + ($quals{$cur_nuc}{'coef1'} * $i) + (($quals{$cur_nuc}{'coef2'}) * ($i**2)));
+				my $sub_qual;
+				if ($new_sub_qual < $min_q){
+					$sub_qual = $min_q;
+				}elsif($new_sub_qual > $max_q){
+					$sub_qual = $max_q;
+				}else{
+					$sub_qual = $new_sub_qual;
+				}
+				push(@qual_string, chr($sub_qual+33));
+				$markov_qual = $sub_qual;
+			}else{
+				substr($new_seq, $i, 1) = $nucleotides[rand @nucleotides];
+				my $sub_qual = $qual_string[$#qual_string];
+				push(@qual_string, $sub_qual);
+				$markov_qual = ord($sub_qual)-33;
 			}
 		}else{
 			for(my $col = $max_q; $col >= ($min_q); $col--){
