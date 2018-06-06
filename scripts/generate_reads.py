@@ -7,8 +7,6 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import generic_dna
 import re, sys, csv, StringIO, random, decimal, argparse
 
-
-
 parser = argparse.ArgumentParser(description='Generate uniform-length single or paired-end metagenomic reads.')
 parser.add_argument('-r', metavar='<reference_fasta>', dest="ref", help="Multi-FASTA file containing genomic sequences from which reads will be sampled.")
 parser.add_argument('-a', metavar='<abundance_file>', dest="abund", help="Tab-delimited abundance file with an abundance value for each corre- sponding genome sequence in <reference fasta>")
@@ -20,6 +18,11 @@ parser.add_argument('-s', metavar='<insert_stddev>', type=int, dest="stddev", de
 parser.add_argument('-d', '--direction', action='store_true', dest="direction", help="Use this switch to generate reads in both forward and reverse orientations" )
 args = parser.parse_args()
 
+
+# print help if no arguments passed
+if len(sys.argv) == 1:
+	parser.print_help()
+	sys.exit(0)
 
 #Reference metagenome database file (FASTA)
 f1 = open(args.ref);
@@ -40,12 +43,10 @@ if(insert_avg):
 else:
 	f4 = open(args.output, 'w')
 
-frags=[]
 species=[]
 diversity=[]
 lengths=[]
 freqs=[]
-comp = {'A':'T', 'T':'A', 'G':'C', 'C':'G', 'N':'N'}
 
 div_file = csv.reader(f2, delimiter='\t')
 for row in div_file:
@@ -57,6 +58,7 @@ uniqueReadCounter = 0
 for i in SeqIO.parse(f1, 'fasta') :
 	i = i.upper()
 	i.seq= Seq(re.sub('[YRWSKMDVHBX]', 'N', str(i.seq)), generic_dna)
+
 	genome_num=0
 	while(not(species[genome_num] in i.description)) :
 		genome_num+=1
@@ -65,6 +67,7 @@ for i in SeqIO.parse(f1, 'fasta') :
 
 		limit=len(i.seq)
 		for j in range(0, coverage) :
+			uniqueReadCounter += 1
 			rand = random.random()
 			rand_length = 0
 			numLen = len(lengths)-1
@@ -88,32 +91,17 @@ for i in SeqIO.parse(f1, 'fasta') :
 					continue
 
 				read1 = i.seq[start1:end1]
-				read2 = ''.join([comp[b] for b in i.seq[end2:start2:-1]])
-				if(args.direction):
-					check = random.random()
-					if(check < 0.5): #forward orientation
-						f4.write(">%s\n" % i.description)
-						f4.write("%s\n" % read1)
-						f5.write(">%s\n" % i.description)
-						f5.write("%s\n" % read2)
-					else: #reverse orientation
-						f4.write(">%s\n" % i.description)
-						f4.write("%s\n" % read1[::-1])
-						f5.write(">%s\n" % i.description)
-						f5.write("%s\n" % read2[::-1])
-				read2 = i.seq[end2:start2:-1]
-				if(args.direction and random.random() < 0.5):
-					#reverse orientation
-					f4.write(">%s\n" % i.description)
-					f4.write("%s\n" % read1[::-1])
-					f5.write(">%s\n" % i.description)
-					f5.write("%s\n" % read2[::-1])
-				else:
-					#forward orientation
-					f4.write(">%s\n" % i.description)
-					f4.write("%s\n" % read1)
-					f5.write(">%s\n" % i.description)
-					f5.write("%s\n" % read2)
+				read2 = i.seq[end2:start2:-1].reverse_complement()
+				# reads from any orienation then randomly make reads from reverse strand
+				if(args.direction and random.random() > 0.5):
+					read1 = read1.reverse_complement()
+					read2 = read2.reverse_complement()
+				
+				# write reads to files
+				f4.write(">%s\n" % i.description)
+				f4.write("%s\n" % read1)
+				f5.write(">%s\n" % i.description)
+				f5.write("%s\n" % read2)
 
 			else:
 				if(limit >= max_read_length) :
@@ -123,18 +111,14 @@ for i in SeqIO.parse(f1, 'fasta') :
 				else:
 					continue
 				read = i.seq[start:end]
-				if(args.direction and random.random() < 0.5):
-					#reverse orientation
-					read = ''.join([comp[b] for b in i.seq[end:start:-1]])
-					f4.write(">%s\n" % i.description)
-					f4.write("%s\n" % read)
-					
-				else:
-					#forward orientation
-					f4.write(">%s\n" % i.description)
-					f4.write("%s\n" % read)
+				#reverse orientation
+				if(args.direction and random.random() > 0.5):
+					read = read.reverse_complement()
 
-			uniqueReadCounter += 1
+				# write read to file
+				f4.write(">%s\n" % i.description)
+				f4.write("%s\n" % read)
+
 
 	if (genome_num >= len(species) ) :
 		break;
@@ -142,3 +126,6 @@ for i in SeqIO.parse(f1, 'fasta') :
 f1.close()
 f2.close()
 f4.close()
+
+if(insert_avg):
+	f5.close()
