@@ -103,37 +103,29 @@ if($err_qual ne "0"){
 	close(ERR_QUAL_FILE);
 }
 
-my @ins_values;
-my @sub_values;
+my %ins_matrix;
+my %sub_matrix;
 if($matrix_file ne "0"){
-	open(MATRIX_FILE, $matrix_file) or die "Could not open $matrix_file\n";
 	my $mat_count = 0; #should only read in 8 lines of input (4 lines insertion matrix, 4 lines substitution matrix
+	open(MATRIX_FILE, $matrix_file) or die "Could not open $matrix_file\n";
 	while(<MATRIX_FILE>){
 		chomp;
 		if(($_ =~ /(\d).*/) && ($mat_count < 8)){
 			my @line = split("\t", $_);
-			$mat_count < 4 ? push(@ins_values, @line) : push(@sub_values, @line);
-			$mat_count++;	
+			my $index = $mat_count < 4 ? $mat_count : $mat_count - 4;
+			my $hash_ref = $mat_count < 4 ? \%ins_matrix : \%sub_matrix;
+			my $cumProb = 0;
+			my $base1 = $nucleotides[$index];
+			for my $index2 (0..3){
+				$cumProb += $line[$index2];
+				${$hash_ref}{$base1}{$nucleotides[$index2]} = $cumProb;
+			}
+			$mat_count++;
 		}
 	}
 	close(MATRIX_FILE);
 }
 
-
-my %ins_matrix;
-my %sub_matrix;
-if($matrix_file ne "0"){
-	foreach my $base1 (@nucleotides){
-		my $cumProb1 = 0;
-		my $cumProb2 = 0;
-		foreach my $base2(@nucleotides){
-			$cumProb1 += shift @ins_values;
-			$ins_matrix{$base1}{$base2} = $cumProb1;
-			$cumProb2 += shift @sub_values;
-			$sub_matrix{$base1}{$base2} = $cumProb2;
-		}
-	}
-}
 
 #populate the markov chain based on previous value + current state
 my $counter=0;
