@@ -5,6 +5,7 @@ use strict;
 use Bio::SeqIO;
 use Getopt::Long;
 use List::Util qw(max);
+
 my $input="";
 my $fasta="";
 my $output="";
@@ -15,9 +16,8 @@ my $h_ins=0;
 my $h_del=0;
 
 my @lengths;
-my @freq;
 my @nucleotides = ('A', 'T', 'G', 'C');
-
+my $trainingLength = 200; # there is 1200 used which is too long
 my @seeds; #first quality value of each sequence
 
 GetOptions ("i=s" => \$input,
@@ -29,8 +29,8 @@ GetOptions ("i=s" => \$input,
 	    "hi=f" => \$h_ins,
 	    "hd=f" => \$h_del);
 
+# error rates processing
 my %rates;
-my %quals;
 if($err_rate ne "0"){
 	system("error_models.py $err_rate > $err_rate.r.out");
 	open(ERR_RATE_FILE, "$err_rate.r.out") or die "Could not open $err_rate.r.out\n"; 
@@ -53,11 +53,23 @@ if($err_rate ne "0"){
 	close(ERR_RATE_FILE);
 }
 
-#assume insertion/deletion rates are equal unless otherwise specified
+# base quality error rate processing
+my %quals;
 my %indel_rates;
-for my $init (0..1200){
-	$indel_rates{'D'}{$init} = 0.5;
-	$indel_rates{'I'}{$init} = 1.0;
+my %hash;
+my $min_q = 1;
+my $max_q = 40;
+
+# initializing indel rates and uninformed priors in one loop
+# assume insertion/deletion rates are equal unless otherwise specified
+for my $pos (0..$trainingLength){
+	$indel_rates{'D'}{$pos} = 0.5;
+	$indel_rates{'I'}{$pos} = 1.0; # cumulative probability
+	for (my $row = $min_q; $row <= $max_q; $row++){
+		for (my $col = $min_q; $col <= $max_q; $col++){
+			$hash{$pos}{$row}{$col} = 1; # uninformed prior
+		}
+	}
 }
 
 if($err_qual ne "0"){
@@ -65,7 +77,7 @@ if($err_qual ne "0"){
 	my $i = 0;
 	while(<DRISEE_QUAL_FILE>){
 		($indel_rates{'D'}{$i}, $indel_rates{'I'}{$i}) = (split("\t", $_))[6, 7];
-		$indel_rates{'I'}{$i} = $indel_rates{'D'}{$i} + $indel_rates{'I'}{$i}; #cumulative probability
+		$indel_rates{'I'}{$i} += $indel_rates{'D'}{$i}; # cumulative probability
 		$i++;
 	}
 	close(DRISEE_QUAL_FILE);
@@ -119,20 +131,6 @@ if($matrix_file ne "0"){
 			$ins_matrix{$base1}{$base2} = $cumProb1;
 			$cumProb2 += shift @sub_values;
 			$sub_matrix{$base1}{$base2} = $cumProb2;
-		}
-	}
-}
-
-my %hash;
-
-my $min_q = 1;
-my $max_q = 40;
-
-#hash{pos}{pos-1}{qual}
-for( my $pos = 0; $pos <= 1200; $pos++){
-	for (my $row = $min_q; $row <= $max_q; $row++){
-		for (my $col = $min_q; $col <= $max_q; $col++){
-			$hash{$pos}{$row}{$col} = 1; #uninformed prior
 		}
 	}
 }
