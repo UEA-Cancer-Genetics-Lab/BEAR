@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 
 #This script takes the UCLUST summary output from DRISEE and determines the quality scores of erroneous nucleotides
